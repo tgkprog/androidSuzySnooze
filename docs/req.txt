@@ -1,0 +1,278 @@
+make build be debug - choice in script d for debug or release r.
+make code more robust it crashes sometimes
+let one checkbix be checked every timee or check what to do if none and dont crash. if none - dont snooze.
+bump minor version if any param == 1 
+app wont go to play store only for side / developer install
+
+aim  : go to a snooze mode : no audible notifications or ringer for x hours and minutes
+
+UI a few buttons with set minute snooze like 1 2, 5, 20 minutes
+below that UI to select 0 to 23 hours and 0 to 59 minutes - user can do anyh one
+
+below that checkboxes for what else to do on action like mute media, open airplane setting etc
+when snoozing on top a small cancel snooze button with just the cancel-snooze.png icon under docs/images/
+
+
+## `MainActivity.kt` (Android 15+, Kotlin, single scrollable screen)
+
+```kotlin
+package com.sel2in.suzysnooze
+
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
+import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.work.*
+
+import java.util.concurrent.TimeUnit
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var hourPicker: NumberPicker
+    private lateinit var minutePicker: NumberPicker
+
+    private lateinit var chkWifi: CheckBox
+    private lateinit var chkAirplane: CheckBox
+    private lateinit var chkInternetPanel: CheckBox
+    private lateinit var chkBatteryIgnore: CheckBox
+    private lateinit var chkMute: CheckBox
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        setupQuickButtons()
+        setupPickers()
+        setupCheckboxes()
+        setupPermissionButtons()
+        setupStartCustom()
+    }
+
+    private fun setupQuickButtons() {
+        val map = mapOf(
+            R.id.btn1 to 1,
+            R.id.btn2 to 2,
+            R.id.btn5 to 5,
+            R.id.btn20 to 20,
+            R.id.btn30 to 30
+        )
+
+        map.forEach { (id, minutes) ->
+            findViewById<Button>(id).setOnClickListener {
+                startSnooze(minutes.toLong())
+            }
+        }
+    }
+
+    private fun setupPickers() {
+        hourPicker = findViewById(R.id.hourPicker)
+        minutePicker = findViewById(R.id.minutePicker)
+
+        hourPicker.minValue = 1
+        hourPicker.maxValue = 15
+
+        minutePicker.minValue = 0
+        minutePicker.maxValue = 59
+    }
+
+    private fun setupCheckboxes() {
+        chkWifi = findViewById(R.id.chkWifi)
+        chkAirplane = findViewById(R.id.chkAirplane)
+        chkInternetPanel = findViewById(R.id.chkInternetPanel)
+        chkBatteryIgnore = findViewById(R.id.chkBatteryIgnore)
+        chkMute = findViewById(R.id.chkMute)
+    }
+
+    private fun setupPermissionButtons() {
+
+        findViewById<Button>(R.id.btnBatteryOpt).setOnClickListener {
+            val intent = Intent(
+                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+
+        findViewById<Button>(R.id.btnInternetPanel).setOnClickListener {
+            startActivity(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
+        }
+
+        findViewById<Button>(R.id.btnAirplaneSettings).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS))
+        }
+    }
+
+    private fun setupStartCustom() {
+        findViewById<Button>(R.id.btnStartCustom).setOnClickListener {
+            val totalMinutes =
+                hourPicker.value * 60L + minutePicker.value
+            startSnooze(totalMinutes)
+        }
+    }
+
+    private fun startSnooze(minutes: Long) {
+
+        if (chkMute.isChecked) {
+            VolumeManager(this).muteAndSave()
+        }
+
+        if (chkInternetPanel.isChecked) {
+            startActivity(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
+        }
+
+        if (chkAirplane.isChecked) {
+            startActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS))
+        }
+
+        val delayMillis = minutes * 60 * 1000
+
+        val work = OneTimeWorkRequestBuilder<RestoreWorker>()
+            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(this)
+            .enqueueUniqueWork(
+                "restore_volume",
+                ExistingWorkPolicy.REPLACE,
+                work
+            )
+
+        Toast.makeText(this, "Snooze started for $minutes minutes", Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+---
+
+## `activity_main.xml`
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Quick Buttons -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button android:id="@+id/btn1" android:text="1" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <Button android:id="@+id/btn2" android:text="2" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <Button android:id="@+id/btn5" android:text="5" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <Button android:id="@+id/btn20" android:text="20" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <Button android:id="@+id/btn30" android:text="30" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+
+        </LinearLayout>
+
+        <!-- Custom Time -->
+        <TextView android:text="Custom Time" android:paddingTop="20dp"/>
+
+        <NumberPicker
+            android:id="@+id/hourPicker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <NumberPicker
+            android:id="@+id/minutePicker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/btnStartCustom"
+            android:text="Start Snooze"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- Options -->
+        <CheckBox android:id="@+id/chkMute" android:text="Mute Ring + Notification"/> checked by default 
+        
+        <CheckBox android:id="@+id/chkWifi" android:text="Open WiFi Settings"/> {remove this and make this a button}
+        <CheckBox android:id="@+id/chkAirplane" android:text="Open Airplane Mode Settings"/> {remove this and make this a button} same row  as earlier button
+        <CheckBox android:id="@+id/chkInternetPanel" android:text="Open Internet Panel"/> {remove this and make this a button , new row}
+        <CheckBox android:id="@+id/chkBatteryIgnore" android:text="Ignore Battery Optimization"/> {remove this and make this a button} same row  as earlier button
+
+        <!-- Permission Buttons -->
+
+        <Button
+            android:id="@+id/btnBatteryOpt"
+            android:text="Grant Battery Optimization Exemption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/btnInternetPanel"
+            android:text="Open Internet Settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/btnAirplaneSettings"
+            android:text="Open Airplane Mode Settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- Bottom Menu -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:paddingTop="40dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button android:text="Website" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            {visit sel2in.com/news/ }
+            <Button android:text="Donate" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            {visit sel2in.com/news/hot/pay }
+            <Button android:text="Ads" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            { visit sel2in.com/news/hot/ }
+
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
+```
+
+---
+
+## Required Permissions (Manifest)
+
+```xml
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+```
+
+---
+
+## Notes (Android 15 Reality)
+
+* Cannot auto-toggle WiFi, Airplane, or Mobile Data.
+* UI opens system panels for user control.
+* Volume mute/restore works.
+* WorkManager handles delay reliably.
+* All on one scrollable screen.
+
+when snoozing a cancel snooze button visible on top but all other buttons and ui also avaialbe if user clicks 1/ 5 minute oir x hours and minutes button 
+app cancels current time, checks settings like mute media; if false restores it if it was saved before and is ==0 now.
+does other things and soozes again
+
+no error or warning - and after starting the timer and showing the phone ui to switch off wifi etc if user checjked those buttons the app hides it self (still in recent)
+
+Survive reboot - yes ask afor boot notificagtion and do actions
+
+
+
+ask questions if any first create a qna.md

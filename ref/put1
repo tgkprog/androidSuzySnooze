@@ -1,0 +1,254 @@
+#!/bin/bash
+# put1 - Quick install and/or enable WiFi debugging
+#
+# Usage:
+#   ./put1        - Install APK to connected device (default)
+#   ./put1 w      - Enable WiFi debugging only (no install)
+#   ./put1 w i    - Enable WiFi debugging AND install APK
+#   ./put1 i      - Same as no params, install APK
+#   ./put1 iw     - Install via WiFi (tries known IPs)
+#
+# WiFi debugging allows ADB over network (port 5555)
+# After enabling, you can disconnect USB and use:
+#   adb connect <device-ip>:5555
+echo -e "No param : install APK to connected device (default). \nw : enable WiFi debugging only (no install). \nw i : enable WiFi debugging AND install APK. \ni : same as no params, install APK. \niw : install via WiFi (tries known IPs)."
+
+# Find APK to install (Downloads > Release > Debug)
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+REACHME_ROOT="${REACHME_HOME:-$(cd "$BASE_DIR/.." && pwd)}"
+RELEASE_APK="$BASE_DIR/app/build/outputs/apk/release/reachme_release.apk"
+DEBUG_APK="$BASE_DIR/app/build/outputs/apk/debug/reachme_debug.apk"
+DOWNLOAD_DIR="$REACHME_ROOT/server1/public/downloads"
+MIN_SIZE_BYTES=$((1024 * 1024)) # 1MB
+
+get_file_mtime() {
+    [ -f "$1" ] && stat -c %Y "$1" 2>/dev/null || echo 0
+}
+
+get_file_size() {
+    [ -f "$1" ] && stat -c %s "$1" 2>/dev/null || echo 0
+}
+
+is_file_stable() {
+    local path="$1"
+    [ -f "$path" ] || return 1
+    local size1 size2
+    size1=$(stat -c %s "$path" 2>/dev/null) || return 1
+    sleep 1
+    size2=$(stat -c %s "$path" 2>/dev/null) || return 1
+    [ "$size1" -eq "$size2" ]
+}
+
+LATEST_DOWNLOAD_APK=""
+DOWNLOAD_MTIME=0
+if [ -d "$DOWNLOAD_DIR" ]; then
+    LATEST_DOWNLOAD_APK=$(find "$DOWNLOAD_DIR" -maxdepth 1 -type f -name "*.apk" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+    DOWNLOAD_MTIME=$(get_file_mtime "$LATEST_DOWNLOAD_APK")
+fi
+
+RELEASE_VALID=false
+if [ -f "$RELEASE_APK" ] && [ $(get_file_size "$RELEASE_APK") -ge $MIN_SIZE_BYTES ] && is_file_stable "$RELEASE_APK"; then
+    RELEASE_VALID=true
+fi
+
+DEBUG_VALID=false
+if [ -f "$DEBUG_APK" ] && [ $(get_file_size "$DEBUG_APK") -ge $MIN_SIZE_BYTES ] && is_file_stable "$DEBUG_APK"; then
+    DEBUG_VALID=true
+fi
+
+APK_PATH=""
+
+if [ "$RELEASE_VALID" = true ]; then
+    RELEASE_MTIME=$(get_file_mtime "$RELEASE_APK")
+    if [ "$RELEASE_MTIME" -gt "$DOWNLOAD_MTIME" ] || [ -z "$LATEST_DOWNLOAD_APK" ]; then
+        APK_PATH="$RELEASE_APK"
+        echo "Using local Release APK (newer than downloads): $APK_PATH"
+    fi
+fi
+
+if [ -z "$APK_PATH" ] && [ -n "$LATEST_DOWNLOAD_APK" ] && [ -f "$LATEST_DOWNLOAD_APK" ]; then
+    APK_PATH="$LATEST_DOWNLOAD_APK"
+    echo "Using latest APK from downloads: $APK_PATH"
+fi
+
+if [ -z "$APK_PATH" ] && [ "$DEBUG_VALID" = true ]; then
+    APK_PATH="$DEBUG_APK"
+    echo "Using local Debug APK: $APK_PATH"
+fi
+
+if [ -z "$APK_PATH" ]; then
+    echo "❌ No suitable APK found (need >1MB stable Release/Debug or downloads entry)."
+    exit 1
+fi
+
+# Known device IPs for WiFi install
+WIFI_IPS=("192.168.1.2" "192.168.1.17")
+
+# Parse parameters
+DO_WIFI=false
+DO_INSTALL=false
+DO_WIFI_INSTALL=false
+
+# If no params, default to install
+if [ $# -eq 0 ]; then
+    DO_INSTALL=true
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        w|W) DO_WIFI=true ;;
+        i|I) DO_INSTALL=true ;;
+        iw|IW|Iw|wI|WI|Wi|wi) DO_WIFI_INSTALL=true ;;
+    esac
+done
+
+echo "================================"
+echo "ReachMe Quick Deploy"
+echo "================================"
+
+# Handle WiFi install mode (iw)
+if [ "$DO_WIFI_INSTALL" = true ]; then
+    echo ""
+    echo "📶 WiFi Install Mode - trying known device IPs..."
+    
+    CONNECTED=false
+    for IP in "${WIFI_IPS[@]}"; do
+        echo "   Trying $IP:5555..."
+        adb connect "$IP:5555" 2>/dev/null
+        
+        # Check if connection succeeded
+        sleep 1
+        if adb devices | grep -q "$IP:5555"; then
+            echo "✅ Connected to $IP:5555"
+            CONNECTED=true
+            TARGET_DEVICE="$IP:5555"
+            break
+        else
+            echo "   ❌ Failed to connect to $IP"
+        fi
+    done
+    
+    if [ "$CONNECTED" = false ]; then
+        echo ""
+        echo "❌ Could not connect to any known device IP"
+        echo "   Make sure:"
+        echo "   1. Device has WiFi debugging enabled (run './put1 w' first with USB)"
+        echo "   2. Device is on the same network"
+        echo "   3. Device IP is one of: ${WIFI_IPS[*]}"
+        exit 1
+    fi
+    
+    # Now install
+    echo ""
+    echo "📦 Installing APK"
+    echo "   Path: $APK_PATH"
+    
+    if [ ! -f "$APK_PATH" ]; then
+        echo "❌ APK not found!"
+        echo "   Searched in: $APK_DIR"
+        echo "   Run build.sh first or check path"
+        exit 1
+    fi
+    
+    # Show file details
+    FILESIZE=$(du -h "$APK_PATH" | cut -f1)
+    MODDATE=$(stat -c '%y' "$APK_PATH" | cut -d'.' -f1)
+    echo "   File: $(basename "$APK_PATH")"
+    echo "   Size: $FILESIZE"
+    echo "   Modified: $MODDATE"
+    
+    echo "🚀 Installing APK over WiFi to $TARGET_DEVICE..."
+    adb -s "$TARGET_DEVICE" install -r "$APK_PATH"
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Installation successful!"
+    else
+        echo "⚠️ Installation failed"
+        exit 1
+    fi
+    
+    echo ""
+    echo "================================"
+    echo "✅ Done!"
+    echo "================================"
+    exit 0
+fi
+
+# Check for connected devices (for non-wifi modes)
+DEVICE_COUNT=$(adb devices | grep -w "device" | wc -l)
+
+if [ "$DEVICE_COUNT" -eq 0 ]; then
+    echo "❌ No devices connected"
+    echo "   Connect a device via USB or use 'adb connect <ip>:5555'"
+    echo "   Or use './put1 iw' to install via WiFi"
+    exit 1
+fi
+
+echo "✅ Found $DEVICE_COUNT device(s)"
+
+# Enable WiFi debugging if requested
+if [ "$DO_WIFI" = true ]; then
+    echo ""
+    echo "📶 Enabling ADB over WiFi..."
+    
+    # Set tcpip mode on port 5555
+    adb tcpip 5555
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ WiFi debugging enabled on port 5555"
+        
+        # Try to get device IP (requires device to be connected)
+        # This gets the IP from wlan0 interface
+        DEVICE_IP=$(adb shell ip addr show wlan0 2>/dev/null | grep "inet " | awk '{print $2}' | cut -d/ -f1)
+        
+        if [ -n "$DEVICE_IP" ]; then
+            echo "   Device IP: $DEVICE_IP"
+            echo ""
+            echo "   To connect wirelessly after disconnecting USB:"
+            echo "   adb connect $DEVICE_IP:5555"
+        else
+            echo "   ⚠️ Could not detect device IP (is WiFi enabled?)"
+            echo "   Find device IP in Settings > About Phone > Status"
+        fi
+    else
+        echo "⚠️ Failed to enable WiFi debugging"
+    fi
+fi
+
+# Install APK if requested (or default)
+if [ "$DO_INSTALL" = true ]; then
+    echo ""
+    echo "📦 Installing APK"
+    echo "   Path: $APK_PATH"
+    
+    if [ ! -f "$APK_PATH" ]; then
+        echo "❌ APK not found!"
+        echo "   Searched in: $APK_DIR"
+        echo "   Run build.sh first or check path"
+        exit 1
+    fi
+    
+    # Show file details
+    FILESIZE=$(du -h "$APK_PATH" | cut -f1)
+    MODDATE=$(stat -c '%y' "$APK_PATH" | cut -d'.' -f1)
+    echo "   File: $(basename "$APK_PATH")"
+    echo "   Size: $FILESIZE"
+    echo "   Modified: $MODDATE"
+    
+    echo "🚀 Installing APK to USB device..."
+    adb -d install -r "$APK_PATH"
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Installation successful!"
+    else
+        echo "⚠️ Installation failed"
+        exit 1
+    fi
+fi
+echo "Build date:" 
+cat $REACHME_HOME/android/buildDate.txt
+echo ""
+echo ""
+echo "================================"
+echo "✅ Done!"
+echo "================================"

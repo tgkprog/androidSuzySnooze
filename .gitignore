@@ -1,0 +1,88 @@
+# ============================================================
+# Android / Gradle .gitignore
+# ============================================================
+
+# --- Gradle ---
+.gradle/
+build/
+app/build/
+*/build/
+
+# --- IntelliJ IDEA / Android Studio ---
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.navigation/
+*.hprof
+
+# --- Local configuration ---
+local.properties
+
+# --- Android Profiler ---
+captures/
+
+# --- Lint ---
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# --- Android signing keys (NEVER commit) ---
+*.jks
+*.keystore
+*.p12
+*.jceks
+.reachme_signing.env
+signing.properties
+
+# --- Build artifacts ---
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# --- Google Services (contains API keys - uncomment if not shared) ---
+# google-services.json
+
+# --- Crash reporting ---
+crashlytics-build.properties
+fabric.properties
+crashlytics.properties
+
+# --- NDK ---
+*.o
+*.so
+obj/
+
+# --- OS generated files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# --- Project-specific ---
+logs/
+
+# buildDate.txt - expect only 1 person to build at a time, so keep in repo
+# if there are conflicts, accept theirs then overwrite
+# buildDate.txt
+
+# version.txt - tracked as source of truth for app version
+
+# --- Misc ---
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+.env
+.env.*
+!.env.example
