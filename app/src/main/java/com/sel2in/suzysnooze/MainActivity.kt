@@ -2,9 +2,14 @@ package com.sel2in.suzysnooze
 
 import android.Manifest
 import android.app.NotificationManager
+import android.app.PictureInPictureParams
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +18,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.format.DateFormat
 import android.util.Log
+import android.util.Rational
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,10 +49,46 @@ class MainActivity : AppCompatActivity() {
     private val pendingPanelIntents: ArrayDeque<Intent> = ArrayDeque()
     private var pendingSnoozeConfig: PendingSnoozeConfig? = null
     private var waitingForPanelResult: Boolean = false
+    
+    private var isInPipMode = false
 
     // Use main-looper Handler (not view.postDelayed) so minimize is not tied to view lifecycle.
     private val mainHandler = Handler(Looper.getMainLooper())
     private var hideRunnable: Runnable? = null
+    
+    // Broadcast receiver to enter PIP mode when restore popup is shown
+    private val pipReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_ENTER_PIP) {
+                FileLogger.log(this@MainActivity, TAG, "Received PIP broadcast - entering PIP mode")
+                enterPipMode()
+            }
+        }
+    }
+    
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val WEB_URL = "https://sel2in.com/snooze/"
+        const val ACTION_ENTER_PIP = "com.sel2in.suzysnooze.ACTION_ENTER_PIP"
+
+        /**
+         * Format minutes into a human-readable duration string.
+         * < 60 min      → "X minutes"
+         * < 24 hours    → "H hr Y min"
+         * >= 24 hours   → "D days H hr Y min"
+         */
+        fun formatDuration(totalMinutes: Long): String {
+            if (totalMinutes < 60) return "$totalMinutes minutes"
+            val days = totalMinutes / (24 * 60)
+            val hours = (totalMinutes % (24 * 60)) / 60
+            val mins = totalMinutes % 60
+            return buildString {
+                if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
+                if (hours > 0) append("$hours hr ")
+                if (mins > 0) append("$mins min")
+            }.trim()
+        }
+    }
 
     private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == SnoozeRepository.KEY_ACTIVE_PUBLIC) {
@@ -60,6 +102,17 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         repository = SnoozeRepository(this)
+        
+        // Register PIP broadcast receiver
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val filter = IntentFilter(ACTION_ENTER_PIP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(pipReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(pipReceiver, filter)
+            }
+            FileLogger.log(this, TAG, "PIP receiver registered")
+        }
         
         FileLogger.log(this, TAG, "=== APP STARTED ===")
         FileLogger.log(this, TAG, "Log file: ${FileLogger.getLogFilePath(this)}")
@@ -79,26 +132,79 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         repository.registerListener(prefListener)
-        updateBatteryButtonVisibility()
         if (waitingForPanelResult) {
             waitingForPanelResult = false
             startPendingSnoozeIfReady()
         }
         updateStatus()
     }
-
+    
     override fun onPause() {
         super.onPause()
         repository.unregisterListener(prefListener)
     }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        hideRunnable?.let { mainHandler.removeCallbacks(it) }
+        hideRunnable = null
+        
+        // Unregister PIP receiver
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                unregisterReceiver(pipReceiver)
+                FileLogger.log(this, TAG, "PIP receiver unregistered")
+            } catch (e: Exception) {
+                // Already unregistered
+            }
+        }
+    }
+    
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isInPipMode = isInPictureInPictureMode
+        FileLogger.log(this, TAG, "PIP mode changed: $isInPictureInPictureMode")
+        
+        if (isInPictureInPictureMode) {
+            // In PIP mode - minimize UI
+            binding.root.alpha = 0.3f
+        } else {
+            // Exited PIP mode - restore UI
+            binding.root.alpha = 1.0f
+        }
+    }
+    
+    private fun enterPipMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val aspectRatio = Rational(16, 9)
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .build()
+                
+                val success = enterPictureInPictureMode(params)
+                FileLogger.log(this, TAG, "Entering PIP mode: $success")
+                
+                if (!success) {
+                    FileLogger.log(this, TAG, "Failed to enter PIP mode")
+                }
+            } catch (e: Exception) {
+                FileLogger.log(this, TAG, "Error entering PIP mode", e)
+            }
+        } else {
+            FileLogger.log(this, TAG, "PIP not supported on this Android version")
+        }
+    }
 
     private fun setupQuickButtons() {
         val quickButtons = listOf(
-            binding.btn1 to 1L,
-            binding.btn2 to 2L,
             binding.btn5 to 5L,
             binding.btn20 to 20L,
-            binding.btn30 to 30L
+            binding.btn30 to 30L,
+            binding.btn60 to 60L
         )
 
         quickButtons.forEach { (button, minutes) ->
@@ -126,26 +232,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnInternetQuick.setOnClickListener {
             openIntent(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
         }
-
-        binding.btnBatteryQuick.setOnClickListener {
-            requestIgnoreBatteryOptimization()
-        }
-
-        binding.btnNotificationPermission.setOnClickListener {
-            requestNotificationPermission()
-        }
-
-        binding.btnDndPermission.setOnClickListener {
-            openDndPermissionScreen()
-        }
-
-        binding.btnWriteSettings.setOnClickListener {
-            openWriteSettingsScreen()
-        }
-        
-        binding.btnExactAlarm.setOnClickListener {
-            openExactAlarmSettings()
-        }
     }
 
     private fun setupMenuButtons() {
@@ -159,6 +245,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnAds.setOnClickListener {
             openIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://sel2in.com/news/hot/")))
+        }
+
+        binding.btnPermissions.setOnClickListener {
+            startActivity(Intent(this, PermissionsActivity::class.java))
         }
     }
 
@@ -195,7 +285,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // For short snoozes, check notification permission (needed for exact alarms)
-        if (minutes < 15) {
+        if (minutes <= 15) {
             if (!areNotificationsGranted()) {
                 FileLogger.log(this, TAG, "ERROR: No notification permission for short snooze")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -220,15 +310,6 @@ class MainActivity : AppCompatActivity() {
         startPendingSnoozeIfReady()
     }
 
-    private fun updateBatteryButtonVisibility() {
-        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
-        if (pm.isIgnoringBatteryOptimizations(packageName)) {
-            binding.btnBatteryQuick.visibility = View.GONE
-        } else {
-            binding.btnBatteryQuick.visibility = View.VISIBLE
-        }
-    }
-
     private fun startPendingSnoozeIfReady() {
         val config = pendingSnoozeConfig ?: return
         pendingSnoozeConfig = null
@@ -246,7 +327,7 @@ class MainActivity : AppCompatActivity() {
 
             val durationMillis = TimeUnit.MINUTES.toMillis(config.minutes)
             val endTimestamp = System.currentTimeMillis() + durationMillis
-            val isShortSnooze = config.minutes < 15
+            val isShortSnooze = config.minutes <= 15
             
             repository.saveSnooze(
                 endTimestamp,
@@ -255,12 +336,12 @@ class MainActivity : AppCompatActivity() {
                 isShortSnooze
             )
             
-            // Choose exact alarm vs WorkManager
+            // Choose exact alarm vs WorkManager: <= 15 min = exact alarm, > 15 min = WorkManager
             if (isShortSnooze) {
-                FileLogger.log(this, TAG, "SHORT snooze - using exact alarm")
+                FileLogger.log(this, TAG, "SHORT snooze (${config.minutes} min) - using EXACT ALARM")
                 RestoreWorker.scheduleExactAlarm(this, durationMillis)
             } else {
-                FileLogger.log(this, TAG, "LONG snooze - using WorkManager")
+                FileLogger.log(this, TAG, "LONG snooze (${config.minutes} min) - using WorkManager")
                 RestoreWorker.schedule(this, durationMillis)
             }
 
@@ -433,35 +514,6 @@ class MainActivity : AppCompatActivity() {
         // mainHandler is NOT tied to the view lifecycle, so it always fires even when
         // the activity is returning from a Settings panel during onResume.
         mainHandler.postDelayed(r, 350)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        hideRunnable?.let { mainHandler.removeCallbacks(it) }
-        hideRunnable = null
-    }
-
-    companion object {
-        private const val TAG = "MainActivity"
-        private const val WEB_URL = "https://sel2in.com/snooze/"
-
-        /**
-         * Format minutes into a human-readable duration string.
-         * < 60 min      → "X minutes"
-         * < 24 hours    → "H hr Y min"
-         * >= 24 hours   → "D days H hr Y min"
-         */
-        fun formatDuration(totalMinutes: Long): String {
-            if (totalMinutes < 60) return "$totalMinutes minutes"
-            val days = totalMinutes / (24 * 60)
-            val hours = (totalMinutes % (24 * 60)) / 60
-            val mins = totalMinutes % 60
-            return buildString {
-                if (days > 0) append("$days day${if (days > 1) "s" else ""} ")
-                if (hours > 0) append("$hours hr ")
-                if (mins > 0) append("$mins min")
-            }.trim()
-        }
     }
 
     private data class PendingSnoozeConfig(

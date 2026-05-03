@@ -8,8 +8,14 @@ Android generally won't allow automatically opening multiple Settings panels at 
 2. **App "Hides Itself" Behavior**
 You mentioned "the app hides itself (still in recent)". Does this mean the app should programmatically go to the background (simulating a Home button press) automatically after the user initiates the snooze and the relevant panels are checked?
 
-3. **Mute/Volume Implementation**
-"mute media" and "mute ring + notification" are mentioned. Should the app just set the standard `AudioManager` volumes (Stream Music, Stream Ring, Stream Notification) to 0 and restore them later? Or would you also like the app to request "Do Not Disturb" (Notification Policy Access) permission to ensure complete silencing?
+3. **DND Policy - Media Protection (CRITICAL)**
+The app uses Do Not Disturb (DND) PRIORITY mode to silence calls and notifications. The DND policy MUST explicitly allow PRIORITY_CATEGORY_ALARMS and PRIORITY_CATEGORY_MEDIA. Without this, some Android devices will silence media playback when DND is enabled, even though we never touch the STREAM_MUSIC volume. The policy categories tell Android's DND system to allow these audio streams through.
+
+Implementation:
+- Ring and notification volumes → 0
+- Ringer mode → SILENT (no vibrate)
+- DND mode → PRIORITY with policy allowing alarms + media
+- NEVER touch STREAM_ALARM or STREAM_MUSIC volumes
 
 4. **Reboot Survival Behavior**
 When the phone reboots, a `BOOT_COMPLETED` receiver will run.
@@ -21,3 +27,4 @@ You specified "when snoozing on top a small cancel snooze button with just the c
 
 6. **Missing Hour Picker Limit**
 The example code sets `hourPicker.maxValue = 15`, but the requirements mention `0 to 23 hours`. I will assume it should be 0 to 23. Are there any restrictions on the combined total time (e.g., must be at least 1 minute)?
+

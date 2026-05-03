@@ -1,21 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:orientation="vertical">
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
         <!-- ── Status bar: cancel icon + snooze status text ── -->
         <LinearLayout
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp">
 
             <ImageButton
                 android:id="@+id/btnCancelSnooze"
@@ -51,24 +58,6 @@
             android:layout_marginTop="8dp">
 
             <Button
-                android:id="@+id/btn1"
-                style="@style/Widget.AppCompat.Button.Small"
-                android:text="1"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="4dp" />
-
-            <Button
-                android:id="@+id/btn2"
-                style="@style/Widget.AppCompat.Button.Small"
-                android:text="2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="4dp" />
-
-            <Button
                 android:id="@+id/btn5"
                 style="@style/Widget.AppCompat.Button.Small"
                 android:text="5"
@@ -90,6 +79,15 @@
                 android:id="@+id/btn30"
                 style="@style/Widget.AppCompat.Button.Small"
                 android:text="30"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_margin="4dp" />
+
+            <Button
+                android:id="@+id/btn60"
+                style="@style/Widget.AppCompat.Button.Small"
+                android:text="60"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -200,7 +198,7 @@
                 android:layout_marginStart="4dp" />
         </LinearLayout>
 
-        <!-- Row 2: Internet Panel | Battery Opt (hidden when already granted) -->
+        <!-- Row 2: Internet Panel -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_marginTop="4dp"
@@ -210,98 +208,54 @@
             <Button
                 android:id="@+id/btnInternetQuick"
                 android:text="@string/btn_internet_quick"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp" />
-
-            <Button
-                android:id="@+id/btnBatteryQuick"
-                android:text="@string/btn_battery_quick"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"
-                android:visibility="gone" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
         </LinearLayout>
 
-        <!-- ── Permission helpers ── -->
-        <TextView
-            android:text="@string/permissions"
+        <!-- ── App Icon ── -->
+        <ImageView
+            android:id="@+id/imgAppLogo"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
             android:layout_marginTop="24dp"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/btnNotificationPermission"
-            android:text="@string/btn_request_notifications"
-            android:layout_marginTop="8dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/btnDndPermission"
-            android:text="@string/btn_request_dnd"
-            android:layout_marginTop="8dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/btnWriteSettings"
-            android:text="@string/btn_request_write_settings"
-            android:layout_marginTop="8dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/btnExactAlarm"
-            android:text="@string/btn_request_exact_alarm"
-            android:layout_marginTop="8dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_gravity="center"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="@string/app_name" />
 
         <!-- ── Bottom menu ── -->
         <LinearLayout
-            android:orientation="horizontal"
-            android:layout_marginTop="32dp"
+            android:orientation="vertical"
+            android:layout_marginTop="16dp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <Button
                 android:id="@+id/btnWebsite"
                 android:text="@string/menu_site"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp" />
+                android:layout_marginBottom="8dp" />
 
             <Button
                 android:id="@+id/btnDonate"
                 android:text="@string/menu_donate"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="4dp"
-                android:layout_marginStart="4dp" />
+                android:layout_marginBottom="8dp" />
 
             <Button
                 android:id="@+id/btnAds"
                 android:text="@string/menu_ads"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp" />
-        </LinearLayout>
+                android:layout_marginBottom="8dp" />
 
-        <ImageView
-            android:id="@+id/imgAppLogo"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="32dp"
-            android:layout_gravity="center"
-            android:src="@mipmap/ic_launcher"
-            android:contentDescription="@string/app_name" />
+            <Button
+                android:id="@+id/btnPermissions"
+                android:text="@string/menu_permissions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/txtVersion"
@@ -320,3 +274,4 @@
             android:layout_height="wrap_content" />
     </LinearLayout>
 </ScrollView>
+</LinearLayout>

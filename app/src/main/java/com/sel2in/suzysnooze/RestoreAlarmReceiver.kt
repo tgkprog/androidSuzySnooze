@@ -26,13 +26,12 @@ class RestoreAlarmReceiver : BroadcastReceiver() {
                 return
             }
             
-            FileLogger.log(context, TAG, "Restoring from exact alarm...")
+            FileLogger.log(context, TAG, "Showing restore dialog...")
             
-            SilentController.restoreState(context)
-            NotificationHelper.cancelOngoingSnoozeNotification(context)
-            repo.clearSnooze()
+            // Show popup dialog for user to choose action
+            RestorePopupActivity.show(context)
             
-            FileLogger.log(context, TAG, "Exact alarm restore completed successfully")
+            FileLogger.log(context, TAG, "Exact alarm triggered - dialog shown")
         } catch (e: Exception) {
             FileLogger.log(context, TAG, "Exact alarm restore failed", e)
         }

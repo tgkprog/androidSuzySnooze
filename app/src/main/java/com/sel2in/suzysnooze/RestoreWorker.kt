@@ -23,10 +23,11 @@ class RestoreWorker(
         private const val ALARM_REQUEST_CODE = 2015
 
         /**
-         * Schedule exact alarm for short snoozes (< 15 min).
+         * Schedule exact alarm for short snoozes (<= 15 min).
+         * Uses setExactAndAllowWhileIdle for precise timing even in Doze mode.
          */
         fun scheduleExactAlarm(context: Context, delayMillis: Long) {
-            FileLogger.log(context, TAG, "Scheduling EXACT ALARM for ${delayMillis}ms")
+            FileLogger.log(context, TAG, "Scheduling EXACT ALARM for ${delayMillis}ms (${delayMillis/60000} minutes)")
             
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val intent = Intent(context, RestoreAlarmReceiver::class.java)
@@ -41,6 +42,7 @@ class RestoreWorker(
             
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    // setExactAndAllowWhileIdle bypasses Doze mode restrictions
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         triggerAtMillis,
@@ -53,14 +55,14 @@ class RestoreWorker(
                         pendingIntent
                     )
                 }
-                FileLogger.log(context, TAG, "Exact alarm scheduled successfully")
+                FileLogger.log(context, TAG, "Exact alarm scheduled successfully for ${java.util.Date(triggerAtMillis)}")
             } catch (e: Exception) {
                 FileLogger.log(context, TAG, "Failed to schedule exact alarm", e)
             }
         }
 
         /**
-         * Schedule WorkManager for long snoozes (≥ 15 min).
+         * Schedule WorkManager for long snoozes (> 15 min).
          */
         fun schedule(context: Context, delayMillis: Long) {
             FileLogger.log(context, TAG, "Scheduling WORKMANAGER for ${delayMillis}ms")
@@ -114,13 +116,12 @@ class RestoreWorker(
                 return Result.success()
             }
             
-            FileLogger.log(applicationContext, TAG, "Restoring from WorkManager...")
+            FileLogger.log(applicationContext, TAG, "Showing restore dialog...")
             
-            SilentController.restoreState(applicationContext)
-            NotificationHelper.cancelOngoingSnoozeNotification(applicationContext)
-            repo.clearSnooze()
+            // Show popup dialog for user to choose action
+            RestorePopupActivity.show(applicationContext)
             
-            FileLogger.log(applicationContext, TAG, "WorkManager restore completed successfully")
+            FileLogger.log(applicationContext, TAG, "WorkManager triggered - dialog shown")
         } catch (e: Exception) {
             FileLogger.log(applicationContext, TAG, "WorkManager restore failed", e)
         }

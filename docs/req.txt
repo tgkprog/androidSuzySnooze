@@ -276,3 +276,28 @@ Survive reboot - yes ask afor boot notificagtion and do actions
 
 
 ask questions if any first create a qna.md
+
+
+=====
+
+
+Goal: DND ON, only calls + notifications muted (incl. vibration), alarms + media untouched, then restore to normal ring + DND OFF after X minutes. Works on Android 14–15+ (OnePlus Nord CE, Samsung). Includes fallback.
+
+CRITICAL: DND Policy MUST explicitly allow ALARMS and MEDIA categories to prevent Android from silencing media playback. Setting policy to 0 (block all) causes DND to silence media on some devices.
+
+1) Manifest
+<manifest ...> <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/> <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/> <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/> <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/> <application ...> <service android:name=".DndAccessibilityService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="false"> <intent-filter> <action android:name="android.accessibilityservice.AccessibilityService"/> </intent-filter> <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_config"/> </service> <receiver android:name=".BootReceiver" android:exported="false"> <intent-filter> <action android:name="android.intent.action.BOOT_COMPLETED"/> </intent-filter> </receiver> </application> </manifest> 
+2) Ask for permissions (must)
+NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE); if (!nm.isNotificationPolicyAccessGranted()) { startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)); } // battery optimization off startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); // optional fallback startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); 
+3) State model
+class AudioState { int ringerMode; int ringVolume; int notifVolume; int alarmVolume; } 
+4) Enable mode (CORRECTED behavior)
+DND ON
+Calls + notifications silent
+No vibration
+Alarms/media unchanged - NEVER touch STREAM_ALARM or STREAM_MUSIC volumes
+public void enableFocusMode(Context ctx, int minutes) { NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE); AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE); // ---- Save state ---- AudioState s = new AudioState(); s.ringerMode = am.getRingerMode(); s.ringVolume = am.getStreamVolume(AudioManager.STREAM_RING); s.notifVolume = am.getStreamVolume(AudioManager.STREAM_NOTIFICATION); s.alarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM); saveState(ctx, s); // ---- DND ON (block calls + notifications, ALLOW alarms + media) ---- nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY); // CRITICAL: Policy MUST allow ALARMS and MEDIA to prevent DND from silencing media NotificationManager.Policy policy = new NotificationManager.Policy( NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS | NotificationManager.Policy.PRIORITY_CATEGORY_MEDIA, // Allow alarms + media 0, // no priority callers 0 // no priority messages ); nm.setNotificationPolicy(policy); // ---- Force NO vibration + silent for calls/notifications ---- am.setRingerMode(AudioManager.RINGER_MODE_SILENT); am.setStreamVolume(AudioManager.STREAM_RING, 0, 0); am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0); // DO NOT TOUCH - these must remain at current volume: // STREAM_ALARM // STREAM_MUSIC // ---- schedule restore ---- scheduleRestore(ctx, minutes); } 
+5) Restore (FIXED - no vibrate issue)
+public class RestoreWorker extends Worker { public RestoreWorker(Context ctx, WorkerParameters params) { super(ctx, params); } @Override public Result doWork() { Context ctx = getApplicationContext(); NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE); AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE); AudioState s = loadState(ctx); // ---- DND OFF ---- nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL); // ---- FORCE NORMAL (critical) ---- am.setRingerMode(AudioManager.RINGER_MODE_NORMAL); // ---- restore volumes safely ---- int ringVol = Math.max(s.ringVolume, 3); int notifVol = Math.max(s.notifVolume, 3); am.setStreamVolume(AudioManager.STREAM_RING, ringVol, 0); am.setStreamVolume(AudioManager.STREAM_NOTIFICATION, notifVol, 0); am.setStreamVolume(AudioManager.STREAM_ALARM, s.alarmVolume, 0); return Result.success(); } }
+
+

@@ -43,24 +43,10 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("REACHME_KEYSTORE_PATH")
-                ?: "${rootProject.projectDir}/../private/s2n/keys/upload-key.jks"
-            val keystorePassword = System.getenv("REACHME_KEYSTORE_PASS")
-                ?: System.getenv("S2n_Jks")
-                ?: ""
-            val keyAliasName = System.getenv("REACHME_KEY_ALIAS") ?: "sel2in_upload"
-            val keyPass = System.getenv("REACHME_KEY_PASS") ?: keystorePassword
-
-            val keystoreFile = file(keystorePath)
-            if (keystoreFile.exists() && keystorePassword.isNotEmpty()) {
-                storeFile = keystoreFile
-                storePassword = keystorePassword
-                keyAlias = keyAliasName
-                keyPassword = keyPass
-            } else {
-                println("⚠️ Release keystore not configured - using default debug signing")
-                println("   Set REACHME_KEYSTORE_PATH and REACHME_KEYSTORE_PASS to sign release builds")
-            }
+            storeFile = file("/data/rme1/private/s2n/keys/upload-key.jks")
+            storePassword = "kloi97"
+            keyAlias = "sel2in_upload"
+            keyPassword = "kloi97"
         }
     }
 

@@ -1,0 +1,11 @@
+A native Android app for snoozing (silencing calls and notifications via DND) for minutes to hours.
+
+Suzy Snooze enables Do Not Disturb mode, sets ring and notification volumes to 0, and switches ringer mode to Silent (no vibrate). Alarms and media playback remain fully functional - volumes are never touched. After the snooze period, the app restores normal ringer mode, turns off DND, and restores original volumes (minimum 3 to ensure audibility).
+
+Key Features:
+- DND Priority mode with explicit policy allowing alarms and media
+- Mutes only ring + notification streams (STREAM_RING, STREAM_NOTIFICATION)
+- Never touches alarm or media volumes (STREAM_ALARM, STREAM_MUSIC preserved)
+- Auto-restore with sound notification when snooze completes
+- Works on Android 10+ (API 29+)
+

@@ -46,16 +46,44 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
 
-        <Button
-            android:id="@+id/btnWebsiteAbout"
+        <TextView
+            android:text="@string/about_links"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
             android:layout_marginTop="24dp"
-            android:text="@string/menu_site"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnCode"
+            android:layout_marginTop="12dp"
+            android:text="@string/btn_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnWebsite"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_website"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnNews"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_news"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/btnAds"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_ads"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
         <Button
             android:id="@+id/btnCloseAbout"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="24dp"
             android:text="@string/btn_close"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />

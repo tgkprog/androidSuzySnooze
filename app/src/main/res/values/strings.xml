@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Sel2InSnooze</string>
+    <string name="app_name">Suzy Snooze</string>
     <string name="cancel_snooze">Cancel snooze</string>
     <string name="status_idle">Not snoozing</string>
     <string name="status_running">Snoozing until %1$s</string>
@@ -22,7 +22,7 @@
     <string name="btn_open_airplane">Open Airplane Mode Settings</string>
     <string name="menu_site">Website</string>
     <string name="menu_donate">Donate</string>
-    <string name="menu_ads">Ads</string>
+    <string name="menu_ads">Support us: Watch an AD</string>
     <string name="toast_duration_required">Select at least one minute.</string>
     <string name="toast_no_action_selected">Select at least one action (Mute or Disable Vibration) to snooze.</string>
     <string name="toast_snooze_started">Snooze started for %1$s.</string>
@@ -32,8 +32,8 @@
     <string name="build_date_label">Built: %1$s</string>
     <string name="build_version_placeholder">Version: --</string>
     <string name="build_date_placeholder">Built: --</string>
-    <string name="about_title">About Sel2InSnooze</string>
-    <string name="about_description">Sel2InSnooze helps you pause distractions by muting sounds and nudging you to toggle radios manually.</string>
+    <string name="about_title">About Suzy Snooze</string>
+    <string name="about_description">Suzy Snooze helps you pause distractions by muting sounds and nudging you to toggle radios manually.</string>
     <string name="btn_close">Close</string>
     <string name="error_opening_link">Unable to open link.</string>
     <string name="btn_request_notifications">Grant notification permission</string>
@@ -51,4 +51,45 @@
     <string name="btn_airplane_quick">Airplane Mode</string>
     <string name="btn_internet_quick">Internet Panel</string>
     <string name="btn_battery_quick">Battery Opt.</string>
+    
+    <!-- Menu items -->
+    <string name="menu_permissions">Permissions</string>
+    <string name="menu_about">About</string>
+    <string name="menu_main">Main</string>
+    
+    <!-- Permissions Activity -->
+    <string name="permissions_title">Permissions</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_dnd">Do Not Disturb Access</string>
+    <string name="permission_exact_alarm">Exact Alarm</string>
+    <string name="permission_battery">Battery Optimization Exemption</string>
+    <string name="permission_write_settings">Modify System Settings</string>
+    <string name="permission_granted">✓ Granted</string>
+    <string name="permission_denied">✗ Not Granted</string>
+    <string name="btn_grant_permission">Grant</string>
+    
+    <!-- About Activity -->
+    <string name="about_links">Links</string>
+    <string name="btn_code">Code (GitHub)</string>
+    <string name="btn_news">News / About</string>
+    <string name="btn_ads">Ads</string>
+    <string name="btn_website">Website</string>
+    
+    <!-- Device Admin & Accessibility -->
+    <string name="accessibility_service_description">Suzy Snooze uses Accessibility Service to detect when the phone screen is locked/unlocked to automatically restore your ringer and notification volume after snooze ends. No information is collected, transmitted, or stored off-device. All data (snooze schedule, volume settings, optional alarm labels) is stored locally on your device only. Optional alarm labels may be spoken using your device\'s native text-to-speech.</string>
+    <string name="device_admin_description">Suzy Snooze uses Device Administrator permission to manage Do Not Disturb mode and set ringer to silent during snooze. When snooze ends, volume is restored to 80%. No information is collected, transmitted, or stored off-device. All settings are stored locally on your device only.</string>
+    <string name="permission_device_admin">Device Administrator</string>
+    <string name="permission_accessibility">Accessibility Service</string>
+    <string name="permission_show_on_top">Display Over Other Apps</string>
+    <string name="permission_pip">Picture-in-Picture</string>
+    
+    <!-- Restore Dialog -->
+    <string name="dialog_restore_title">Suzy Snooze - End Snooze</string>
+    <string name="dialog_restore_message">Snooze time is up!</string>
+    <string name="btn_okay">Okay</string>
+    <string name="btn_dismiss">Dismiss</string>
+    <string name="btn_snooze_10">Snooze 10 min</string>
+    <string name="btn_snooze_15">Snooze 15 min</string>
+    <string name="btn_snooze_20">Snooze 20 min</string>
+    <string name="btn_snooze_30">Snooze 30 min</string>
 </resources>
